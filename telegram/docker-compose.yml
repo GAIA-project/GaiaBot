@@ -1,0 +1,18 @@
+version: '3.2'
+
+services:
+  python:
+    image: 'qopbot/gaiabot:1.1'
+    environment:
+      TELEGRAM_BOT_TOKEN: ToKen
+      SPARKS_CLIENT: client
+      SPARKS_SECRET: secret
+      SPARKS_USERNAME: username
+      SPARKS_PASSWORD: password
+      DB_LOCATION: /data/bot.db
+    volumes:
+      - BOT_DB_VOLUME:/data/
+
+volumes:
+  BOT_DB_VOLUME:
+    external: true
