@@ -7,12 +7,12 @@
 import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
-import sqlite3
 from sparkworks import SparkWorks
 import datetime
 import os
+import redis
 
-__DB__ = os.environ['DB_LOCATION']
+r = redis.StrictRedis(host='redis', port=6379, db=0)
 
 token = os.environ['TELEGRAM_BOT_TOKEN']
 
@@ -82,32 +82,12 @@ def start(bot, update):
     update.message.reply_text('Please choose your country:', reply_markup=reply_markup)
 
 
-def setupDB():
-    conn = sqlite3.connect(__DB__)
-    c = conn.cursor()
-    # Create table
-    c.execute('''CREATE TABLE IF NOT EXISTS users (id , school)''')
-    c.close()
-    conn.commit()
-    conn.close()
-
-
 def saveDB(userId, schoolId):
-    conn = sqlite3.connect(__DB__)
-    c = conn.cursor()
-    c.execute("delete from users where id=\"" + str(userId) + "\"")
-    c.execute("insert into users values (?, ?)", (str(userId), schoolId))
-    c.close()
-    conn.commit()
-    conn.close()
+    r.set(str(userId), schoolId)
 
 
 def getSchoolFromDB(userId):
-    conn = sqlite3.connect(__DB__)
-    c = conn.cursor()
-    c.execute("select school from users where id='" + str(userId) + "'")
-    val = c.fetchone()
-    return val[0]
+    return r.get(str(userId))
 
 
 def button(bot, update):
@@ -173,7 +153,6 @@ def handle_message(bot, update):
 
 
 def main():
-    setupDB()
     # Create the Updater and pass it your bot's token.
     updater = Updater(token)
 

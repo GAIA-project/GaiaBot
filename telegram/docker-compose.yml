@@ -9,10 +9,12 @@ services:
       SPARKS_SECRET: secret
       SPARKS_USERNAME: username
       SPARKS_PASSWORD: password
-      DB_LOCATION: /data/bot.db
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
     volumes:
-      - BOT_DB_VOLUME:/data/
-
+      - BOT_REDIS_VOLUME:/bitnami/redis/data
 volumes:
-  BOT_DB_VOLUME:
+  BOT_REDIS_VOLUME:
     external: true
