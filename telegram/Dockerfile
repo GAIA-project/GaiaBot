@@ -5,5 +5,6 @@ RUN pip install requests
 RUN pip install sparkworks
 RUN pip install redis
 COPY bot.py /app/bot.py
+COPY utils.py /app/utils.py
 
 CMD ["python","bot.py"]

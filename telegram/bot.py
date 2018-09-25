@@ -4,13 +4,16 @@
 
 # This program is dedicated to the public domain under the CC0 license.
 """
+import datetime
 import logging
+import os
+
+import redis
+from sparkworks import SparkWorks
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
-from sparkworks import SparkWorks
-import datetime
-import os
-import redis
+
+import utils
 
 r = redis.StrictRedis(host='redis', port=6379, db=0)
 
@@ -23,61 +26,17 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-helpText = "Ask question for the school's data like the following:\n" \
+helpText = "List the school's measured properties using the 'list' command.\n" \
+           "Show the currently selected school using the 'school' command.\n" \
+           "Ask a question for the school's data by typing the property's name.\n" \
+           "You can also ask questions for the school's data like the following:\n" \
            "What is the temperature in the school?\n" \
-           "What is the power consumption of the school building?\n\n" \
-           "You can also use simplified quick commands like 'temperature' or 'power'."
-
-locations = {'location-1': {'name': 'Greece',
-                            'schools': [{'id': 19640, 'name': "Γυμνάσιο Πενταβρύσου Καστοριάς"},
-                                        {'id': 156886, 'name': "1ο Επαγγελματικό Λύκειο Πατρών"},
-                                        {'id': 155877, 'name': "2ο Δημοτικό Σχολείο Παραλίας Πατρών "},
-                                        {'id': 27827, 'name': "8ο Γυμνάσιο Πατρών"},
-                                        {'id': 506265, 'name': "1o Δημοτικό Σχολείο Ψυχικού Αττικής"},
-                                        {'id': 141587, 'name': "1o Γυμνάσιο Ραφήνας"},
-                                        {'id': 144024, 'name': "Δημοτικό Σχολείο Λυγιάς"},
-                                        {'id': 155851, 'name': "5ο Δημοτικό Σχολείο Νέας Σμύρνης"},
-                                        {'id': 157185, 'name': "Ελληνογερμανική Αγωγή"},
-                                        {'id': 144242, 'name': "1ο Γυμνάσιο Ν. Φιλαδέλφειας"},
-                                        {'id': 141611, 'name': "Πειραματικό Γυμνάσιο Πατρών"},
-                                        {'id': 204, 'name': "Πειραματικό Γυμνάσιο Πανεπιστημίου Πατρών"},
-                                        {'id': 195, 'name': "Πειραματικό Λύκειο Πανεπιστημίου Πατρών"},
-                                        {'id': 3206, 'name': "Πειραματικό Δημοτικό Σχολείο Πανεπιστημίου Πατρών"},
-                                        {'id': 155877, 'name': "2ο Δημοτικό Σχολείο Παραλίας Πατρών"},
-                                        {'id': 155849, 'name': "6ο Δημοτικό Σχολείο Καισαριανής"},
-                                        {'id': 155865, 'name': "46ο Δημοτικό Σχολείο Πατρών"},
-                                        {'id': 144243, 'name': "Δημοτικό Σχολείο Μεγίστης"},
-                                        {'id': 157089, 'name': "1ο Εργαστηριακό Κέντρο Πατρών"}]},
-             'location-2': {'name': 'Sweden', 'schools': [{'id': 159705, 'name': "Soderhamn"}, ]},
-             'location-3': {'name': 'Italy',
-                            'schools': [{'id': 155076, 'name': "Gramsci-Keynes School"},
-                                        {'id': 155077, 'name': "Sapienza"}]}}
-
-schoolNames = []
-for item in locations['location-1']['schools']:
-    schoolNames.append(item)
-for item in locations['location-2']['schools']:
-    schoolNames.append(item)
-for item in locations['location-3']['schools']:
-    schoolNames.append(item)
-
-
-def getSchoolStrId(id):
-    return id.replace('school-', '')
-
-
-def getSchoolIntId(id):
-    return int(getSchoolStrId(id))
-
-
-def getSchoolNameFromId(id):
-    return [item for item in schoolNames if item["id"] == getSchoolIntId(id)][0]["name"]
-
+           "What is the power consumption of the school building?\n\n"
 
 def start(bot, update):
     keyboard = []
-    for key in locations:
-        keyboard.append([InlineKeyboardButton(locations[key]['name'], callback_data=key)])
+    for key in utils.locations:
+        keyboard.append([InlineKeyboardButton(utils.locations[key]['name'], callback_data=key)])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text('Please choose your country:', reply_markup=reply_markup)
 
@@ -96,7 +55,7 @@ def button(bot, update):
 
     if query.data.startswith('location'):
         keyboard = []
-        for school in locations[query.data]['schools']:
+        for school in utils.locations[query.data]['schools']:
             keyboard.append([InlineKeyboardButton(school['name'], callback_data='school-' + str(school['id']))])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -107,7 +66,7 @@ def button(bot, update):
                                       chat_id=query.message.chat_id,
                                       message_id=query.message.message_id)
     elif query.data.startswith('school'):
-        bot.edit_message_text(text="Selected {}".format(getSchoolNameFromId(query.data) + "\n" + helpText),
+        bot.edit_message_text(text="Selected {}".format(utils.getSchoolNameFromId(query.data) + "\n" + helpText),
                               chat_id=query.message.chat_id,
                               message_id=query.message.message_id)
         logger.info(type(update.callback_query))
@@ -130,25 +89,41 @@ def handle_message(bot, update):
     userId = str(update.message.from_user.id)
     logger.info(userId)
     schooId = getSchoolFromDB(userId)
-    text = ""
     message = update.message.text.lower().split(" ")
+    messageParts = []
+    for messagePart in message:
+        messageParts.append(messagePart.encode('ascii', 'ignore'))
+    properties = utils.getSiteProperties(s, utils.getSchoolStrId(schooId))
 
-    if 'temperature' in message:
-        bot.send_message(chat_id=update.message.chat_id, text="Retrieving data...")
-        latest = s.latest(s.resource("site-" + getSchoolStrId(schooId) + "/Temperature"))
-        text = "Last Update: %s\n" % (datetime.datetime.fromtimestamp(latest['latestTime'] / 1000))
-        text += "Latest value: %.2f %s\n" % (latest['latest'], latest["uom"])
-        text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'], latest["uom"])
-    elif 'power' in message or 'energy' in message:
-        bot.send_message(chat_id=update.message.chat_id, text="Retrieving data...")
-        latest = s.latest(s.resource("site-" + getSchoolStrId(schooId) + "/Calculated Power Consumption"))
-        text = "Last Update: %s\n" % (datetime.datetime.fromtimestamp(latest['latestTime'] / 1000))
-        if latest["uom"] == 'mWh':
-            text += "Latest value: %.2f %s\n" % (latest['latest'] / 1000, 'Wh')
-            text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'] / 1000000, 'kWh')
+    if "list" in messageParts:
+        text = "Sensed properties: \n"
+        for property in properties:
+            text += "- %s\n" % (property['property'].title())
+    elif "school" in messageParts:
+        text = "Current School: \n"
+        text += "- %s\n" % (utils.getSchoolNameFromId(schooId).title())
+    else:
+        resource = utils.findResource(properties, messageParts)
+        logger.info('Requested "%s" returned "%s"', message, resource)
+        if resource is not None:
+            text = ""
+            bot.send_message(chat_id=update.message.chat_id, text="Retrieving data...")
+            latest = s.latest(resource)
+            divi1 = 1
+            divi2 = 1
+            uom1 = latest["uom"]
+            uom2 = latest["uom"]
+            if 'power' in message:
+                divi1 = 1000
+                uom1 = "Wh"
+                divi2 = 1000000
+                uom2 = "kWh"
+            text = "Property: %s\n" % (resource['property'])
+            text += "Last Update: %s\n" % (datetime.datetime.fromtimestamp(latest['latestTime'] / 1000))
+            text += "Latest value: %.2f %s\n" % (latest['latest'] / divi1, uom1)
+            text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'] / divi2, uom2)
         else:
-            text += "Latest value: %.2f %s\n" % (latest['latest'], latest["uom"])
-            text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'], latest["uom"])
+            bot.send_message(chat_id=update.message.chat_id, text="Such data are not available.")
     bot.send_message(chat_id=update.message.chat_id, text=text)
 
 
