@@ -111,8 +111,8 @@ def handle_message(bot, update):
             latest = s.latest(resource)
             divi1 = 1
             divi2 = 1
-            uom1 = latest["uom"]
-            uom2 = latest["uom"]
+            uom1 = latest['uom']
+            uom2 = latest['uom']
             if 'power' in message:
                 divi1 = 1000
                 uom1 = "Wh"
