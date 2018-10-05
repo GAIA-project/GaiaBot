@@ -107,21 +107,24 @@ def handle_message(bot, update):
         logger.info('Requested "%s" returned "%s"', message, resource)
         if resource is not None:
             text = ""
-            bot.send_message(chat_id=update.message.chat_id, text="Retrieving data...")
+            bot.send_message(chat_id=update.message.chat_id, text="Retrieving data for %s..." % (utils.getSchoolNameFromId(schooId).title()))
             latest = s.latest(resource)
             divi1 = 1
             divi2 = 1
-            uom1 = latest['uom']
-            uom2 = latest['uom']
-            if 'power' in message:
-                divi1 = 1000
-                uom1 = "Wh"
-                divi2 = 1000000
-                uom2 = "kWh"
-            text = "Property: %s\n" % (resource['property'])
-            text += "Last Update: %s\n" % (datetime.datetime.fromtimestamp(latest['latestTime'] / 1000))
-            text += "Latest value: %.2f %s\n" % (latest['latest'] / divi1, uom1)
-            text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'] / divi2, uom2)
+            try:
+                uom1 = latest['uom']
+                uom2 = latest['uom']
+                if 'power' in message:
+                    divi1 = 1000
+                    uom1 = "Wh"
+                    divi2 = 1000000
+                    uom2 = "kWh"
+                text += "Property: %s\n" % (resource['property'])
+                text += "Last Update: %s\n" % (datetime.datetime.fromtimestamp(latest['latestTime'] / 1000))
+                text += "Latest value: %.2f %s\n" % (latest['latest'] / divi1, uom1)
+                text += "Daily aggregate: %.2f %s\n" % (latest['latestDay'] / divi2, uom2)
+            except KeyError:
+                exit(0)
         else:
             bot.send_message(chat_id=update.message.chat_id, text="Such data are not available.")
     bot.send_message(chat_id=update.message.chat_id, text=text)

@@ -6,7 +6,7 @@
 """
 import re
 
-locations = {'location-1': {'name': 'Greece',
+locations = {'location-1': {'name': 'greece',
                             'schools': [{'id': 19640, 'name': "Γυμνάσιο Πενταβρύσου Καστοριάς"},
                                         {'id': 156886, 'name': "1ο Επαγγελματικό Λύκειο Πατρών"},
                                         {'id': 155877, 'name': "2ο Δημοτικό Σχολείο Παραλίας Πατρών "},
@@ -26,8 +26,8 @@ locations = {'location-1': {'name': 'Greece',
                                         {'id': 155865, 'name': "46ο Δημοτικό Σχολείο Πατρών"},
                                         {'id': 144243, 'name': "Δημοτικό Σχολείο Μεγίστης"},
                                         {'id': 157089, 'name': "1ο Εργαστηριακό Κέντρο Πατρών"}]},
-             'location-2': {'name': 'Sweden', 'schools': [{'id': 159705, 'name': "Soderhamn"}, ]},
-             'location-3': {'name': 'Italy',
+             'location-2': {'name': 'sweeden', 'schools': [{'id': 159705, 'name': "Soderhamn"}, ]},
+             'location-3': {'name': 'italy',
                             'schools': [{'id': 155076, 'name': "Gramsci-Keynes School"},
                                         {'id': 155077, 'name': "Sapienza"}]}}
 
