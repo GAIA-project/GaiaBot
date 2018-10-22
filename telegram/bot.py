@@ -33,6 +33,9 @@ helpText = "List the school's measured properties using the 'list' command.\n" \
            "What is the temperature in the school?\n" \
            "What is the power consumption of the school building?\n\n"
 
+phenomena = s.phenomena()
+
+
 def start(bot, update):
     keyboard = []
     for key in utils.locations:
@@ -56,7 +59,7 @@ def button(bot, update):
     if query.data.startswith('location'):
         keyboard = []
         for school in utils.locations[query.data]['schools']:
-            keyboard.append([InlineKeyboardButton(school['name'], callback_data='school-' + str(school['id']))])
+            keyboard.append([InlineKeyboardButton(school['name'], callback_data='school-' + school['uuid'])])
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         bot.edit_message_text(text="Please choose your school: ".format(query.data),
@@ -97,8 +100,11 @@ def handle_message(bot, update):
 
     if "list" in messageParts:
         text = "Sensed properties: \n"
+        props = []
         for property in properties:
-            text += "- %s\n" % (property['property'].title())
+            props.append(property['property'].title())
+        for property in sorted(set(props)):
+            text += "- %s\n" % (property)
     elif "school" in messageParts:
         text = "Current School: \n"
         text += "- %s\n" % (utils.getSchoolNameFromId(schooId).title())
@@ -107,8 +113,10 @@ def handle_message(bot, update):
         logger.info('Requested "%s" returned "%s"', message, resource)
         if resource is not None:
             text = ""
-            bot.send_message(chat_id=update.message.chat_id, text="Retrieving data for %s..." % (utils.getSchoolNameFromId(schooId).title()))
-            latest = s.latest(resource)
+            bot.send_message(chat_id=update.message.chat_id,
+                             text="Retrieving data for %s..." % (utils.getSchoolNameFromId(schooId).title()))
+            resource_uuid = resource['resourceUuid']
+            latest = s.latest(resource_uuid)
             divi1 = 1
             divi2 = 1
             try:
